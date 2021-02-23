@@ -5,12 +5,12 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.LocalTime;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import com.bt.assignment.entity.Session;
 
@@ -22,28 +22,32 @@ public class SessionReportingService {
 		Start, End;
 	}
 
-	private LocalTime firstLogTime;
-	private Map<String, List<Session>> userSessionMap = new LinkedHashMap<>();
+	public Map<String, List<Session>> processLogFile(String fileName) throws IOException {
 
-	public void processLogFile(String fileName) throws IOException {
+		Map<String, List<Session>> userSessionMap = new LinkedHashMap<>();
 
-		firstLogTime = LocalTime.parse(Arrays
-				.stream(Files.lines(Paths.get(fileName)).findFirst().get().split(SPLITTER_SPACE)).findFirst().get());
+		List<String> matchingLogLineList = Files.lines(Paths.get(fileName))
+				.filter(s -> s.matches("^([0-9][0-9]:[0-9][0-9]:[0-9][0-9] [a-zA-Z0-9]* [a-zA-Z0-9]*)"))
+				.collect(Collectors.toList());
 
-		Files.lines(Paths.get(fileName)).forEach(logLine -> {
+		if (matchingLogLineList.size() == 0) {
+			return userSessionMap;
+		}
+
+		LocalTime firstLogTime = LocalTime.parse(matchingLogLineList.get(0).split(SPLITTER_SPACE)[0]);
+
+		matchingLogLineList.forEach(logLine -> {
 			System.out.println("Processing log: " + logLine);
 			String[] logArray = logLine.split(" ");
-			if (logArray.length != 3) {
-				return;
-			}
-			String loggedSessionTime = logArray[0];
+
+			LocalTime loggedSessionTime = LocalTime.parse(logArray[0]);
 			String loggedUser = logArray[1];
 			String loggedSessionStatus = logArray[2];
 
 			Session session = new Session();
 
 			if (loggedSessionStatus.equalsIgnoreCase(SessionStatus.Start.name()))
-				session.setInTime(LocalTime.parse(loggedSessionTime));
+				session.setInTime(loggedSessionTime);
 
 			if (userSessionMap.get(loggedUser) == null) {
 				// Saving session info for new user
@@ -52,7 +56,7 @@ public class SessionReportingService {
 
 				if (loggedSessionStatus.equalsIgnoreCase(SessionStatus.End.name())) {
 					session.setInTime(firstLogTime);
-					session.setOutTime(LocalTime.parse(loggedSessionTime));
+					session.setOutTime(loggedSessionTime);
 				}
 				userSessions.add(session);
 				userSessionMap.put(loggedUser, userSessions);
@@ -70,26 +74,26 @@ public class SessionReportingService {
 					Optional<Session> sessionOptional = userSessionMap.get(loggedUser).stream()
 							.filter(session1 -> session1.getOutTime() == null).findFirst();
 					if (sessionOptional.isPresent()) {
-						sessionOptional.get().setOutTime(LocalTime.parse(loggedSessionTime));
+						sessionOptional.get().setOutTime(loggedSessionTime);
 					} else {
 						// Special scenario where starting session log is missing and only ending
 						// session info available
 						session.setInTime(firstLogTime);
-						session.setOutTime(LocalTime.parse(loggedSessionTime));
+						session.setOutTime(loggedSessionTime);
 						userSessionMap.get(loggedUser).add(session);
 					}
 				}
 			}
 		});
 
-		endSessionWhenLogInfoMissing();
-
+		endSessionWhenLogInfoMissing(userSessionMap);
+		return userSessionMap;
 	}
 
 	/**
 	 * Method setting OutTime when session end log is missing in log file
 	 */
-	private void endSessionWhenLogInfoMissing() {
+	private void endSessionWhenLogInfoMissing(Map<String, List<Session>> userSessionMap) {
 		userSessionMap.entrySet().stream().forEach(e -> {
 			for (Session session : e.getValue()) {
 				if (session.getOutTime() == null) {
@@ -102,7 +106,7 @@ public class SessionReportingService {
 	/**
 	 * Method generating report of user sessions
 	 */
-	public void generateReport() {
+	public void generateReport(Map<String, List<Session>> userSessionMap) {
 		System.out.println("\n\n================== Report on user sessions durations ==================");
 		System.out.println("User          Session Duration (seconds)");
 		userSessionMap.entrySet().stream().forEach(e -> {

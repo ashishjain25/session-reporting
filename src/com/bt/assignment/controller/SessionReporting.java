@@ -1,7 +1,6 @@
 package com.bt.assignment.controller;
 
 import java.io.IOException;
-
 import com.bt.assignment.service.SessionReportingService;
 
 public class SessionReporting {
@@ -16,8 +15,7 @@ public class SessionReporting {
 		
 		SessionReportingService service = new SessionReportingService();
 		try {
-			service.processLogFile(args[0]);
-			service.generateReport();
+			service.generateReport(service.processLogFile(args[0]));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

@@ -4,8 +4,10 @@
 14:02:58 ALICE99 Start
 14:03:02 CHARLIE Start
 14:03:33 ALICE99 Start
+User timing out
 14:03:35 ALICE99 End
 14:03:37 CHARLIE End
 14:04:05 ALICE99 End
 14:04:23 ALICE99 End
 14:04:41 CHARLIE Start
+Charlie started the session
